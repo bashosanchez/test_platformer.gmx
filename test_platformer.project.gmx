@@ -9,6 +9,8 @@
     <sprite>sprites\spr_Pac</sprite>
     <sprite>sprites\spr_SkullMan</sprite>
     <sprite>sprites\spr_Wall</sprite>
+    <sprite>sprites\spr_Arrow</sprite>
+    <sprite>sprites\spr_Boomerang</sprite>
   </sprites>
   <backgrounds name="background"/>
   <paths name="paths"/>
@@ -19,9 +21,11 @@
     <object>objects\obj_SkullMan</object>
     <object>objects\obj_Wall</object>
     <object>objects\obj_Control</object>
+    <object>objects\obj_Boomerang</object>
   </objects>
   <rooms name="rooms">
-    <room>rooms\rmTest1</room>
+    <room>rooms\rm_TestWeapons</room>
+    <room>rooms\rm_Test1</room>
   </rooms>
   <help>
     <rtf>help.rtf</rtf>

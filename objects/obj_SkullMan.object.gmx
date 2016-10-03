@@ -27,15 +27,25 @@
             <kind>1</kind>
             <string>//initialize variables
 life = 10;
-grav = 1;
 status = "normal";
+c_rateoffire = 10;
+rof = 0;
 
-move_accel = 0.1;
-jump_speed = 20;
-move_v = 0;
-max_hspeed = 15;
-friction = 0.1;
+//physics stuff
+a_aircontrol = 1;
+a_gravity = 1;
+a_slide = 1.5;
+a_runspeed = 1.2;
+a_friction = .97;
+a_minfrictionspeed = .4;
+v_jumpspeed = 12;
+a_jumpaccel = 2.6;
+v_hmaxspeed = 18;
+v_vmaxspeed = 100;
+t_jump = 0;
 
+
+//animation variables
 anim_state = "idle";
 anim_direction = "right";
 anim_frame = 0;
@@ -44,7 +54,7 @@ frame_count = 0;
 image_speed = 0;
 
 //whatever
-gravity = grav;
+gravity = a_gravity ;
 
 </string>
           </argument>
@@ -69,16 +79,137 @@ gravity = grav;
           <argument>
             <kind>1</kind>
             <string>//get input
-key_right = keyboard_check(vk_right);
-key_left = -keyboard_check(vk_left);
-key_jump = keyboard_check_pressed(vk_space);
+key_right = keyboard_check(vk_right) + keyboard_check(ord("D"));
+key_left = -keyboard_check(vk_left) -keyboard_check(ord("A"));
+key_jump = keyboard_check(vk_space) + keyboard_check(ord("W"));
+mouse_left = mouse_check_button(mb_left);
 
 //do stuff
 move = key_right + key_left;
 
-//temporary
+//set anim direction
+if(move &gt; 0) anim_direction = "right";
+if(move &lt; 0) anim_direction = "left";
+
+//not colliding with the ground
+if(not(place_meeting(x,y+1,obj_Wall))
+    or (place_meeting(x,y+1,obj_Wall) and key_jump = 1))
+{
+    anim_state = "jump";
+    
+    if(t_jump &lt; 5 and key_jump = 1)
+    {
+        vspeed -= a_jumpaccel;
+    }
+    
+    if((place_meeting(x,y+1,obj_Wall) and key_jump = 1)) 
+    {
+        vspeed -= v_jumpspeed;
+        t_jump = 0    
+    }
+    
+    t_jump++;
+    
+    //air control right
+    if(move &gt; 0) hspeed += a_aircontrol;
+
+    //air control left
+    if(move &lt; 0) hspeed -= a_aircontrol; 
+}
+else
+{
+    //move right
+    if(move &gt; 0)
+    {
+        if(hspeed &gt;= 0)
+        {
+            anim_state = "run";
+            hspeed += a_runspeed;
+        }
+        else
+        {
+            anim_state = "slide";
+            hspeed += a_slide;
+        }  
+    }
+    
+    //move left
+    if(move &lt; 0)
+    {
+        if(hspeed &lt;= 0)
+        {
+            anim_state = "run";
+            hspeed -= a_runspeed;
+        }
+        else
+        {
+            anim_state = "slide";
+            hspeed -= a_slide;
+        }
+    }
+}
+
+//friction
+if(place_meeting(x,y+1,obj_Wall))
+{
+    if(abs(hspeed) &lt;= a_minfrictionspeed)
+        hspeed = 0;
+    else
+    {   
+        if(abs(hspeed) * (1-a_friction) &lt; a_minfrictionspeed)
+        {
+            if(hspeed&gt;0) hspeed -= a_minfrictionspeed;
+            if(hspeed&lt;0) hspeed += a_minfrictionspeed;
+        }
+        else
+            hspeed *= a_friction;
+    }
+}
+
+//bound speeds
+if(hspeed &gt; v_hmaxspeed) hspeed = v_hmaxspeed;
+if(hspeed &lt; -v_hmaxspeed) hspeed = -v_hmaxspeed;
+if(vspeed &gt; v_vmaxspeed) vspeed = v_vmaxspeed;
+if(vspeed &lt; -v_vmaxspeed) vspeed = -v_vmaxspeed;
+
+
+//idle
 if ((vspeed = 0) and move = 0 and place_meeting(x,y+1,obj_Wall))
     anim_state = "idle";
+
+//out of bounds    
+if(y &gt; room_height + 10)
+{
+    instance_create(32,32,obj_SkullMan);
+    instance_destroy();
+    
+}
+
+rof--;
+if(rof&lt;0) rof = 0;
+
+//shootinstuff
+if(mouse_left and rof=0)
+{
+    with(instance_create(x,y,obj_Boomerang))
+    {
+        pointer_dir = point_direction(x,y,mouse_x,mouse_y);
+        x = round(x + 64*dcos(pointer_dir));
+        y = round(y - 64*dsin(pointer_dir));
+        c_throwdir = pointer_dir;
+        
+        for(i=0;i&lt;c_backsteps;i++)
+        {
+            prev_x[i] = (1/c_backsteps)*dcos(c_throwdir)*v_throw;
+            prev_y[i] = (1/c_backsteps)*(-dsin(c_throwdir)*v_throw);
+        }
+    }
+    rof = c_rateoffire;
+}
+
+
+/*
+//stop here
 if(move = 0) hspeed = 0;
 
 if(move &gt; 0)
@@ -113,15 +244,10 @@ if(key_jump = 1 and vspeed = 0)
     anim_state = "jump";
     vspeed = -jump_speed;
 }
-
 if(not(place_meeting(x,y+1,obj_Wall))) anim_state = "jump";   
+*/
 
-if(y &gt; room_height + 10)
-{
-    instance_create(32,32,obj_SkullMan);
-    instance_destroy();
-    
-}
+
 </string>
           </argument>
         </arguments>
@@ -192,9 +318,10 @@ if (!place_free(x+hspeed,y+vspeed))
         <arguments>
           <argument>
             <kind>1</kind>
-            <string>if(anim_direction = "left")image_xscale = -1;
-    else image_xscale = 1;
+            <string>if(anim_direction = "left")image_xscale = -abs(image_xscale);
+    else image_xscale = abs(image_xscale);
 
+//draw character
 switch(anim_state)
 {
     case "idle":
@@ -215,11 +342,20 @@ switch(anim_state)
         draw_self()
         break;
         
+    case "slide":
+        image_index = 5;
+        draw_self();
+        break;
+        
     default:
         draw_self();
 }
 
+pointer_dir = point_direction(x,y,mouse_x,mouse_y);
+pointer_x = round(x + 64*dcos(pointer_dir));
+pointer_y = round(y - 64*dsin(pointer_dir));
 
+draw_sprite_ext(spr_Arrow,1,pointer_x,pointer_y,1,1,pointer_dir+270,c_white,1);
 
 //text debug
 draw_set_font(fnt_CN);
@@ -230,6 +366,10 @@ draw_text_color(view_xview[0]+32,view_yview[0]+32,
     + "#GRAVITY: " + string(gravity)
     + "#X: " + string(x)
     + "   Y: " + string(y)
+    + "#POINTER_DIR: " + string(pointer_dir)
+    + "#P_X: " + string(pointer_x) 
+    + "   P_Y: " + string(pointer_y)
+    + "#T_JUMP: " + string(t_jump)
 ,c_black,c_black,c_black,c_black,1);
 </string>
           </argument>
